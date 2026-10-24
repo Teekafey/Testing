@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101a2b">
+<title>The Rebranding colour palette</title>
+<style>
+  :root{color-scheme:dark;
+    --bg:#101a2b;--glow:#30496c;--ink:#f6f2e9;--muted:#a8b5c8;--line:#334965;--accent:#f4c96b;--panel:#17243a;
+    --taken-bg:#3b4250;--taken-ink:#7d8797;--taken-line:#566073;--tile-bg:#243b5c;--tile-ink:#e5edf6;--tile-line:#3d5878}
+  @media (prefers-color-scheme:light){:root{color-scheme:light;
+    --bg:#f3efe6;--glow:#ffffff;--ink:#1b2335;--muted:#586377;--line:#d3cbb9;--accent:#8a5f0a;--panel:#fffaf0;
+    --taken-bg:#d4d7dd;--taken-ink:#8b93a1;--taken-line:#b4bac5;--tile-bg:#e2dccd;--tile-ink:#2b3446;--tile-line:#c4bba6}}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -15%,var(--glow) 0,transparent 46%),var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;justify-content:center;padding:30px 14px 44px}
+  main{width:min(880px,100%);text-align:center}
+  .eyebrow{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);font-weight:750;margin:4px 0 10px}
+  h1{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:clamp(2rem,6.4vw,3.8rem);line-height:1.05;margin:0 0 14px;letter-spacing:-.03em}
+  .intro{max-width:540px;margin:0 auto 22px;color:var(--muted);line-height:1.55}
+  .board-wrap{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(10px,2.8vw,22px);box-shadow:0 22px 60px #0003}
+  .board{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:clamp(4px,1vw,8px)}
+  .tile{appearance:none;border:1px solid var(--tile-line);border-radius:9px;aspect-ratio:1;background:var(--tile-bg);color:var(--tile-ink);overflow-wrap:anywhere;font:700 clamp(.58rem,1.8vw,.92rem)/1 ui-sans-serif,system-ui,sans-serif;cursor:pointer;box-shadow:inset 0 1px 0 #ffffff30,0 3px 7px #0002;transition:transform .14s,box-shadow .14s,opacity .14s;touch-action:manipulation;padding:0}
+  .tile:hover:not(:disabled),.tile:focus-visible{transform:translateY(-2px) scale(1.06);box-shadow:0 0 0 3px var(--accent),0 8px 16px #0004;outline:none;position:relative;z-index:1}
+  .tile:disabled{cursor:default}
+  .tile.sealed{opacity:.55}
+  .tile.taken{background:var(--taken-bg);color:var(--taken-ink);border:1px dashed var(--taken-line);box-shadow:none;text-decoration:line-through;opacity:1}
+  .tile.mine{opacity:1;background:var(--c);color:var(--t);border-color:#0003;box-shadow:0 0 0 3px var(--accent),0 8px 22px #0005;position:relative;z-index:1;transform:scale(1.08)}
+  .status{min-height:24px;margin:17px 0 0;color:var(--muted);font-size:.88rem}
+  .result{display:none;margin:18px auto 0;padding:16px 20px;max-width:420px;border:1px solid var(--line);border-radius:14px;background:var(--bg);animation:rise .35s ease-out;align-items:center;gap:16px;text-align:left}
+  .result.show{display:flex}
+  .chip{width:64px;height:64px;border-radius:14px;border:1px solid #0003;flex:none}
+  .result-label{font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:750}
+  .cname{font-family:Georgia,"Times New Roman",serif;font-size:1.7rem;line-height:1.1;margin-top:3px}
+  .chex{color:var(--muted);font-size:.85rem;margin-top:3px;font-variant-numeric:tabular-nums}
+  .foot{font-size:.75rem;color:var(--muted);margin:15px 5px 0;line-height:1.45}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @media(max-width:380px){.board{gap:3px}.tile{border-radius:6px}}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Pick your shade</div>
+  <h1>The Rebranding colour palette</h1>
+  <p class="intro">Every tile looks the same. Pick one and your colour is revealed. It’s then locked in for you and greyed out so nobody else can take it.</p>
+  <section class="board-wrap" aria-label="Choose one tile">
+    <div class="board" id="board"></div>
+    <div class="status" id="status" aria-live="polite">Tap one tile to claim your colour.</div>
+    <div class="result" id="result" role="status" aria-live="polite">
+      <div class="chip" id="chip"></div>
+      <div><div class="result-label">Your colour</div><div class="cname" id="cname"></div><div class="chex" id="chex"></div></div>
+    </div>
+  </section>
+  <p class="foot" id="foot">One colour per person. Claimed tiles stay greyed out for everyone.</p>
+</main>
+<script>
+(() => {
+  // ====== PASTE YOUR SUPABASE DETAILS HERE ======
+  const SUPABASE_URL = 'https://wvkuahmiixgqprlewevl.supabase.co/rest/v1/';   // e.g. https://abcdxyz.supabase.co
+  const SUPABASE_KEY = 'sb_publishable_O_bTj5FQJPgitrAAOg5tcg_aNyHjHvd';
+  // ===============================================
+
+  const online = /^https:\/\/.+\.supabase\.co/.test(SUPABASE_URL) && SUPABASE_KEY.length > 40;
+  const API = SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/claims';
+  const H = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY };
+
+  const COLORS = {
+    purple:{name:'Purple',hex:'#8d41bb',ink:'#ffffff'},
+    pink:{name:'Pink',hex:'#d055a2',ink:'#ffffff'},
+    white:{name:'White',hex:'#ffffff',ink:'#1d2433'},
+    lemon:{name:'Lemon',hex:'#90be40',ink:'#1d2a08'}
+  };
+  const LEMON = new Set([19,31,49,63,82]);
+  function colorOf(n){
+    if (LEMON.has(n)) return 'lemon';
+    const p = (n - 1) % 20 + 1;
+    return p <= 13 ? 'purple' : p <= 17 ? 'pink' : 'white';
+  }
+  const N = 100;
+  const $ = id => document.getElementById(id);
+  const board = $('board'), status = $('status'), result = $('result');
+  const pad = n => String(n).padStart(2,'0');
+
+  const store = {
+    get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+    set(k,v){ try { localStorage.setItem(k,v); } catch {} }
+  };
+  let clientId = store.get('palette-client-id');
+  if (!clientId) {
+    clientId = (crypto.randomUUID ? crypto.randomUUID() : 'c' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+    store.set('palette-client-id', clientId);
+  }
+
+  let taken = new Set();
+  let mine = parseInt(store.get('palette-my-pick'), 10);
+  if (!(mine >= 1 && mine <= N)) mine = null;
+  let busy = false;
+
+  const tiles = [];
+  for (let n = 1; n <= N; n++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tile';
+    b.addEventListener('click', () => claim(n));
+    board.appendChild(b);
+    tiles.push(b);
+  }
+
+  function render(){
+    tiles.forEach((b, i) => {
+      const n = i + 1, c = COLORS[colorOf(n)];
+      const isMine = mine === n;
+      const isTaken = !isMine && taken.has(n);
+      b.classList.toggle('mine', isMine);
+      b.classList.toggle('taken', isTaken);
+      b.classList.toggle('sealed', !isMine && !isTaken && mine !== null);
+      b.disabled = isTaken || isMine || mine !== null || busy;
+      if (isMine) { b.style.setProperty('--c', c.hex); b.style.setProperty('--t', c.ink); b.textContent = c.name; }
+      else { b.style.removeProperty('--c'); b.style.removeProperty('--t'); b.textContent = pad(n); }
+      b.setAttribute('aria-label', isMine ? `Tile ${pad(n)}, ${c.name}, yours` : isTaken ? `Tile ${pad(n)}, already taken` : `Tile ${pad(n)}`);
+    });
+    if (mine !== null) {
+      const c = COLORS[colorOf(mine)];
+      $('chip').style.background = c.hex;
+      $('cname').textContent = c.name;
+      $('chex').textContent = `${c.hex.toUpperCase()} · tile ${pad(mine)}`;
+      result.classList.add('show');
+      status.textContent = 'Your colour is locked in.';
+    } else {
+      result.classList.remove('show');
+      status.textContent = taken.size ? `${taken.size} of ${N} tiles already claimed. Tap one to claim yours.` : 'Tap one tile to claim your colour.';
+    }
+  }
+
+  async function refresh(){
+    if (!online) return;
+    try {
+      const r = await fetch(API + '?select=tile', { headers: H });
+      if (!r.ok) throw new Error(r.status);
+      const rows = await r.json();
+      taken = new Set(rows.map(x => x.tile));
+    } catch (e) { /* keep last known state */ }
+  }
+
+  async function recoverMine(){
+    if (!online) return;
+    try {
+      const r = await fetch(API + '?select=tile&client_id=eq.' + encodeURIComponent(clientId), { headers: H });
+      if (!r.ok) return;
+      const rows = await r.json();
+      if (rows.length) { mine = rows[0].tile; store.set('palette-my-pick', String(mine)); }
+    } catch (e) {}
+  }
+
+  async function claim(n){
+    if (mine !== null || busy || taken.has(n)) return;
+    busy = true; render();
+    try {
+      if (online) {
+        const r = await fetch(API, {
+          method: 'POST',
+          headers: { ...H, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ tile: n, client_id: clientId })
+        });
+        if (r.status === 409) {
+          await recoverMine();               // already picked something earlier?
+          if (mine === null) { taken.add(n); status.textContent = 'Someone just took that one. Try another.'; }
+        } else if (!r.ok) {
+          throw new Error(r.status);
+        } else {
+          mine = n; taken.add(n);
+        }
+      } else {
+        mine = n;
+      }
+      if (mine !== null) store.set('palette-my-pick', String(mine));
+    } catch (e) {
+      status.textContent = 'Couldn’t save that pick. Please try again.';
+    } finally {
+      busy = false;
+      const msg = status.textContent;
+      render();
+      if (mine === null && /took|taken|Couldn/.test(msg)) status.textContent = msg;
+    }
+  }
+
+  if (!online) $('foot').textContent = 'Setup needed: add your Supabase details at the top of the script. Until then, picks are saved only on this device.';
+
+  render();
+  (async () => {
+    await Promise.all([refresh(), recoverMine()]);
+    render();
+    setInterval(async () => {
+      if (document.hidden || busy) return;
+      await refresh(); render();
+    }, 4000);
+  })();
+})();
+</script>
+</body>
+</html>
